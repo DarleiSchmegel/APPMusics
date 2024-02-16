@@ -15,4 +15,5 @@ export const Title = styled.Text`
   color: #fff;
   font-weight: bold;
   margin: 7px 24px 0;
+  
 `;

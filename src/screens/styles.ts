@@ -26,6 +26,7 @@ export const Input = styled.TextInput`
 `;
 
 export const Form = styled.View`
+  flex: 1;
   padding-right: 24px;
   padding-left: 24px;
   padding-bottom: 0px;

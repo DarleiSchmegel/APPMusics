@@ -1,6 +1,11 @@
+/* eslint-disable prettier/prettier */
 import React, {useRef, useState, useEffect} from 'react';
-import {FlatList, Alert, KeyboardAvoidingView, Text, View} from 'react-native';
+import {Alert, KeyboardAvoidingView, Text, View} from 'react-native';
+
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {FlatList} from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
+import * as Progress from 'react-native-progress';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import {Menu, MenuTypeProps} from '../components/Menu';
 // import {Skill} from '../components/Skill';
@@ -13,105 +18,119 @@ import {database} from '../databases';
 // import {Q} from '@nozbe/watermelondb';
 import {SongModel} from '../databases/model/songModel';
 import {Button} from '../components/Button';
-import NewMusic from '../components/NewSong';
+import {donwloadSong} from '../utils/donwloadSong';
+import styled from 'styled-components/native';
+import RoundButton from '../components/RoundButton';
+import CreateUpdateSong from '../components/CreateUpdateSong';
+import {AudioPlayer} from '../components/AudioPlayer';
+import {
+  SongDataFormated,
+  deleteSongById,
+  fetchSongs,
+  fetchSongsDataFormated,
+} from '../databases/services/songServices';
 
 export function Home() {
   const [url, setUrl] = useState('');
   const [songs, setSongs] = useState<SongModel[]>([]);
+  const [songsFormated, setSongsFormated] = useState<SongDataFormated[]>([]);
   const [song, setSong] = useState<SongModel>({} as SongModel);
+  const [downloadingStatus, setDownloadingStatus] = useState(0);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
-
-  async function handleSave() {
-    if (song.id) {
-      await database.write(async () => {
-        await song.update(data => {
-          (data.url = ''),
-            (data.title = ''),
-            (data.description = ''),
-            (data.liked = false);
-        });
-      });
-
-      Alert.alert('Updated!');
-      setSong({} as SongModel);
-    } else {
-      await database.write(async () => {
-        await database.get<SongModel>('song').create(data => {
-          (data.url = ''),
-            (data.title = ''),
-            (data.description = ''),
-            (data.liked = false);
-        });
-      });
-      Alert.alert('Created!');
-    }
-
-    bottomSheetRef.current?.collapse();
-    fetchData();
-    bottomSheetRef.current?.collapse();
-  }
-
-  async function handleRemove(item: SongModel) {
-    await database.write(async () => {
-      await item.destroyPermanently();
-    });
-
-    fetchData();
-    Alert.alert('Deleted!');
-  }
 
   async function fetchData() {
     // // await clearDatabase();
     try {
-      const response = database
-        .get('song')
-        .query()
-        .fetch() as unknown as SongModel[];
-
-      setSongs(response);
+      fetchSongsDataFormated();
+      await fetchSongsDataFormated()
+        .then(response => {
+          setSongsFormated(response as unknown as SongDataFormated[]);
+          // console.log('formated', songsFormated);
+        })
+        .catch(err => {
+          Alert.alert('Erro', err);
+        });
     } catch (error) {
       console.log('erro', error);
     }
   }
 
-  async function handleEdit(item: SongModel) {}
+  async function handleModal(option: boolean) {
+    setModalIsOpen(option);
+  }
+
+  function updateDownloadingStatus(valeu: number) {
+    setDownloadingStatus(valeu);
+  }
 
   useEffect(() => {
     fetchData();
   }, []);
 
   return (
-    <Container>
-      <Title>Minhas Músicas</Title>
-      {/* <Menu type={''} setType={() => console.log('click')} /> */}
-
-      {songs.length > 0 && (
-        <FlatList
-          data={songs}
-          keyExtractor={item => item.id}
-          renderItem={({item}) => (
-            <View>
-              <Text>titulo: {item.title}</Text>
-              <Text>descrição: {item.description}</Text>
-              <Text>url: {item.url}</Text>
-              <Text>curtiu: {item.liked}</Text>
-            </View>
-          )}
+    <SafeAreaProvider style={{flex: 1}}>
+      <Container>
+        <CreateUpdateSong
+          modalVisible={modalIsOpen}
+          handleModalVisible={handleModal}
+          fetchData={fetchData}
+          title="Buscar Música"
+          isNew={true}
         />
-      )}
-      <BottomSheet ref={bottomSheetRef} index={0} snapPoints={['1%', '35%']}>
-        <Form>
-          <FormTitle>Nova Música</FormTitle>
+        <Header>
+          <Title>Minhas Músicas</Title>
+          <RoundButton iconName="plus" onPress={() => handleModal(true)} />
+        </Header>
 
-          <KeyboardAvoidingView
-            // behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={200}>
-            <Input placeholder="URL" onChangeText={setUrl} value={url} />
-          </KeyboardAvoidingView>
-          <Button title="Adiconar" onPress={handleSave} />
-        </Form>
-      </BottomSheet>
-      {/* <NewMusic title="teste" /> */}
-    </Container>
+        {songsFormated && (
+          <FlatList
+            data={songsFormated}
+            keyExtractor={item => item.id}
+            renderItem={({item}) => {
+              return (
+                <View>
+                  <Title>{`url: ${item.id}`}</Title>
+                  <Text style={{color: '#fff'}}>title: {item.title}</Text>
+                  <Text style={{color: '#fff'}}>path: {item.url}</Text>
+                  <RoundButton
+                    iconName="delete"
+                    size={25}
+                    onPress={() => {
+                      deleteSongById(item.id)
+                        .then(res => {
+                          if (res) {
+                            fetchData();
+                          }
+                        })
+                        .catch();
+                    }}
+                  />
+                </View>
+              );
+            }}
+          />
+        )}
+
+        <BottomSheet
+          style={{marginBottom: 50}}
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={['3%', '50%']}>
+          {songsFormated.length > 0 && (
+            <AudioPlayer uri="url" playList={songsFormated} />
+          )}
+        </BottomSheet>
+        {/* <NewMusic title="teste" /> */}
+      </Container>
+    </SafeAreaProvider>
   );
 }
+
+const Header = styled(View)`
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+`;

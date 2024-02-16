@@ -3,7 +3,8 @@ import styled from 'styled-components/native';
 export const Container = styled.TouchableOpacity`
   width: 100%;
   height: 56px;
-  background-color: #f25f5c;
+  background-color: ${({disabled}) => (disabled ? '#ccc' : '#f25f5c')};
+
   border-radius: 8px;
   align-items: center;
   justify-content: center;

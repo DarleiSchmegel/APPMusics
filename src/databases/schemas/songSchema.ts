@@ -8,13 +8,17 @@ export const songSchema = tableSchema({
       type: 'string',
     },
     {
-      name: 'descrition',
+      name: 'songDescription',
       type: 'string',
+    },
+    {
+      name: 'videoID',
+      type: 'string',
+      isIndexed: true,
     },
     {
       name: 'url',
       type: 'string',
-      isIndexed: true,
     },
     {
       name: 'liked',
